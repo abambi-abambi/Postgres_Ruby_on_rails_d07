@@ -1,0 +1,244 @@
+Базы данных: Postgresql
+
+Прежде чем мы сможем развернуть приложение, созданное с использованием нашей платформы, на Heroku, нам нужно научиться использовать базу данных Postgresql. По той причине, что Heroku не поддерживает Sqlite.
+
+*****
+
+1. База данных Postgresql предварительно настроена с пользователем, отвечающим на имя Postgres. Программа командной строки для управления postgresql - это psql (похоже на sqlite3).
+Войдите в систему c помощью пользователя postgres
+sudo -u postgres psql
+
+
+2. Для запуска своей команды - такой шаблон: sudo -u имя_команды
+
+Создание нового пользователя с паролем:
+postgres = # create user pupkin password 'hello';
+
+
+3. Предоставление прав пользователю:
+
+postgres = # alter user pupkin with superuser;
+(максимальные права)
+
+
+4. Создание базы данных
+(С помощью Sqlite нужно просто создать новый файл, чтобы получить новую базу данных. С Postgresql мы должны использовать язык SQL. Мы создаем базу данных с именем pupkin_blog и указываем, что она принадлежит пользователю pupkin)
+
+postgres=# create database pupkin_blog owner pupkin;
+
+
+5. Посмотреть список существующих баз данных с помощью команды:
+
+\l
+выйти из списка: \q
+
+6. Подключение к желаемой базе данных с помощью команды: \c имя_базы_данных
+
+postgres =#\c pupkin_blog
+(You are now connected to the database "pupkin_blog" as the user "postgres")
+
+По команде: \c 
+можно уточнить к какой БД и с помощью какого пользователя подключено
+
+
+7. Создание таблицы
+(В отличие от Sqlite, Postgresql обладает ограниченностью типов данных. Вы найдете их на сайте Postgresql. Для столбца id мы будем использовать тип serial, а для даты мы можем использовать тип timestamp. Колонки title и content остаются неизменными. Введите следующую команду psql)
+
+    create table posts(
+       id serial primary key,
+       title text,
+       content text,
+       date timestamp
+   );
+   
+Тип serial на самом деле не является типом. Это скорее сокращение, чтобы сказать, что нам нужно целое число, которое автоматически увеличивается.
+
+8. Создание двух сообщений
+
+Чтобы ввести текущую дату, у вас есть две возможности: now() или current_timestamp. Вот пример каждого:
+
+    insert into posts(title, content, date)
+     values('Bonjour !', 'Premier post avec Postgresql', now());
+    
+    insert into posts(title, content, date)
+     values('Hello !', 'In english this time', current_timestamp);
+
+Просмотреть содержимого таблицы сообщений:
+pupkin_blog=# select * from posts;
+
+9. Выход из psql с помощью сочетания клавиш Ctrl+d или введя команду \q.
+
+*****
+
+Наш проект на ruby on rails:
+
+1.0 Предварительно установить (на Убунту) библиотеку:
+sudo apt-get install libpq-dev
+
+Нужно установить на комп гем pg, если он не установлен
+Всего версий pg вот сколько: https://rubygems.org/gems/pg/versions
+gem install pg -v '0.19.0' (эта версия при сборке проекта может обновиться): обновилась до pg (pg -v '1.2.3')
+
+1.1 Нужно установить на комп postgresql (Убунту):
+sudo apt update
+sudo apt -y install postgresql
+
+ На маке:
+# brew update
+# brew install postgresql
+# pg_ctl -D /Users/user_name/.brew/var/postgres start - зачем?
+
+2.0 Подготовка руби + рэйлз
+(Можно предварительно создать связку нужного руби с нужной версией rails https://habr.com/ru/post/128048/?):
+# rvm 2.3.4
+# rvm gemset create rails4.2.7
+# rvm 2.3.4@rails4.2.7
+# gem install rails -v 4.2.7
+
+Опытным путем выяснилось, что подходит ruby '2.6.9'
+Устанавливаем новый руби (алгоритм переустановки любой версии руби для Убунту):
+rvm pkg install openssl
+rvm reinstall ruby-2.6.9 --with-openssl-dir=$rvm_path/usr
+(https://askdev.ru/q/oshibka-ustanovki-ruby-2-0-rails-gem-ne-udaetsya-zagruzit-takoy-fayl-openssl-68956/?)
+
+rvm use 2.6.9
+
+2.1 Зайти в нужную папку (cd ex00) и выполнить команду:
+rails new acme -d postgresql
+
+3. Переходим в папку acme
+cd acme
+
+4. Помещаем в проект Gemfile из сабджекта (взамен созданного О_о):
+cp -f ~/Downloads/gemfile .
+
+Если гемфайла нет, то используем существующий в папке:
+Чтобы иметь возможность использовать Postgresql с нашей платформой, нужно, чтобы был добавлен gem pg в Gemfile и удален (если он там есть) gem sqlite3. Строка в Gemfile может выглядеть так: gem 'pg', '~> 0.15'
+
+5. Запустить bundle install (добавив версии/скачав отдельно гемы, с которыми проблемы)
+
+(При моем Gemfile пришлось вручную устанавливать gem install "binding_of_caller"
+Потом пришлось установить последний гем с версией, а также указать его в Gemfile: gem 'binding_of_caller', '~> 0.7')
+
+6. Работа с postgresql:
+
+Выполнила команды:
+sudo -u postgres psql
+
+CREATE ROLE:
+postgres=# create user abambi password '8k83!Z';
+
+ALTER ROLE:
+postgres=# alter user abambi with superuser;
+
+CREATE DATABASE:
+postgres=# create database acme_bd1 owner abambi;
+
+
+7. Вписать настройки созданной бд (логин-пароль-адрес-порт) в файл:
+config/database.yml
+
+database: acme_bd1
+username: abambi
+password: 8k83!Z
+host: 127.0.0.1
+port: 5432
+
+> Могут быть ошибки: ошибки отступов в database.yml файл
+При этом оповещение об ошибке малосодержательное:
+DEPRECATION WARNING: Passing a string to ActiveRecord::Base.establish_connection for a configuration lookup is deprecated, please pass a symbol (:abambi) instead.
+
+8.
+bundle install (?)
+
+rake db:create (создание базы данных по данным config/database.yml)
+
+Успешно, если похожее сообщение выходит:
+Running via Spring preloader in process 365190
+Created database 'acme_db1_development'
+Database 'acme_test' already exists)
+
+Неуспешно, если ошибки с версиями руби:
+1) Called from /home/abambi/.rvm/gems/ruby-2.2.10/gems/activerecord-4.2.7/lib/active_record/connection_adapters/postgresql_adapter.rb:44:in `new'
+/home/abambi/.rvm/gems/ruby-2.2.10/gems/activerecord-4.2.7/lib/active_record/connection_adapters/postgresql_adapter.rb:651: [BUG] Segmentation fault at 0x00000000000000
+ruby 2.2.10p489 (2018-03-28 revision 63023) [x86_64-linux]"
+
+2) /home/abambi/.rvm/gems/ruby-2.2.0/gems/activerecord-4.2.7/lib/active_record/connection_adapters/postgresql_adapter.rb:651: [BUG] Segmentation fault at 0x00000000000000
+ruby 2.2.0p0 (2014-12-25 revision 49005) [x86_64-linux]
+
+3) Sprockets::Railtie::ManifestNeededError: Expected to find a manifest file in `app/assets/config/manifest.js`
+=> добавила этот файл из другого проекта.
+
+Теперь в консоли предупреждение, что нужно сделать:
+rails webpacker:install
+
+Потом нахрен закомментить строку в config/application.rb:
+ config.active_record.raise_in_transactional_callbacks = true
+
+Потом появилось: gems/pg-1.3.5/lib/pg/connection.rb:631: [BUG] Segmentation fault at 0x0000000000000000
+=> установила concurrent-ruby-1.1.9
+
+9.
+rails s
+
+10. Запустить сайт (с БД postgresql, а не sqlite3) по адресу: localhost:3000
+
+*****
+Настроечные файлы:
+1) Существует некий файл настроек в rvm, но если нет ошибок по нему, ничего делать не надо:
+~/.rvm/gems/ruby-2.2.10/gems/activerecord-4.2.7/lib/active_record/connection_adapters/postgresql_adapter.rb
+
+2) Существует конфигурацонный файл postgresql (postgresql.conf):
+Посмотреть, где он установлен в системе:
+sudo -u postgres psql -c 'SHOW config_file'
+У меня он здесь: vim /etc/postgresql/13/main/postgresql.conf
+
+Здесь прописан порт, который должен совпасть с портом в файле config/database.yml:
+port = 5432
+Прописаны сокеты: unix_socket_directories = '/var/run/postgresql'
+
+>>>> Кстати, при ошибке с сокетами:
+	"could not connect to server: No such file or directory
+	Is the server running locally and accepting
+	connections on Unix domain socket "/var/run/postgresql/.s.PGSQL.5432"?"
+Можно создать мягкую ссылку, если рэйлз ищет папку с пострескл не там (зная, где нужно искать), в том числе поискать конфиги и порты:
+Решение: sudo ln -s /tmp/.s.PGSQL.5432 /var/run/postgresql/.s.PGSQL.5432
+https://ask-ubuntu.ru/questions/362997/ne-udaetsya-podklyuchitsya-k-postgresql-cherez-port-5432?
+
+3) Также можно заглянуть (sudo vim) по настройкам в файл pg_hba.conf:
+https://ask-ubuntu.ru/questions/362997/ne-udaetsya-podklyuchitsya-k-postgresql-cherez-port-5432?
+(Адрес к нему указан внутри файла /etc/postgresql/13/main/postgresql.conf):
+не забыть sudo!
+sudo vim /etc/postgresql/13/main/pg_hba.conf
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# "local" is for Unix domain socket connections only
+local   all             all                                     peer
+# IPv4 local connections:
+host    all             all             127.0.0.1/32            md5
+
+****
+Команды для контроля postgresql (Убунту):
+sudo service postgresql restart
+sudo service postgresql start
+sudo service postgresql stop
+sudo lsof -nP -i | grep LISTEN
+
+****
+Список источников:
+https://www.8host.com/blog/nastrojka-prilozheniya-ruby-on-rails-na-postgresql-v-ubuntu-18-04/
+Установка постгрескл
+
+https://github.com/quarkgluant/day07_piscine_Ruby_42 (внизу на французском объяснения) Странноватенькая статья. Но возможно, это из-за устаревших или не точных версий руби/рейлз
+
+https://www.codecademy.com/search?query=ruby
+Уроки по Руби, русскоязычные
+Деплой на Heroku: 39мин:28сек
+
+Создание связки gemset ruby -v + rails -v
+https://habr.com/ru/post/128048/?
+ 
+НЕ ИСПОЛЬЗОВАЛА: В случае возникновения проблем с подключением проверьте файл pg_hba.conf, заменив строки local и host ID на md5 или лучше scram-sha-256, не забыв перезапустить postgres после сохранения изменений в этом файле.
+
+Электронная книга Ксавьера Найрака: Создайте свой веб-фреймворк в Ruby (Xavier Nayrac Créer votre framework web en Ruby)
+
